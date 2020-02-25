@@ -261,6 +261,7 @@ define([
           on(slideNode, "click", () => {
             slide.applyTo(view).then(() => {
               //placesExpand.collapse();
+              console.info(view.map.ground.layers.map(l=>{return `${l.title} : ${l.visible}`}));
             });
           });
         });

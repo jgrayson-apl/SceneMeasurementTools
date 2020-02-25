@@ -110,6 +110,7 @@ define([
       _optionsPanel.classList.add("panel", "trailer-quarter", "hide");
       this.container.append(_optionsPanel);
 
+      // BASELINE //
       const _baselineLayerLabel = document.createElement("div");
       _baselineLayerLabel.innerText = "Base Elevation Layer";
       _optionsPanel.append(_baselineLayerLabel);
@@ -118,6 +119,7 @@ define([
       this._baselineLayerSelect.classList.add("select-full");
       _optionsPanel.append(this._baselineLayerSelect);
 
+      // COMPARE //
       const _compareLayerLabel = document.createElement("div");
       _compareLayerLabel.classList.add("leader-quarter");
       _compareLayerLabel.innerText = "Compare Elevation Layer";
@@ -127,6 +129,7 @@ define([
       this._compareLayerSelect.classList.add("select-full");
       _optionsPanel.append(this._compareLayerSelect);
 
+      // SAMPLING DISTANCE //
       const _samplingDistanceLabel = document.createElement("div");
       _samplingDistanceLabel.classList.add("leader-half");
       _samplingDistanceLabel.innerText = `Sampling Distance: ${this.dem_resolution} meters`;
@@ -144,6 +147,7 @@ define([
         _samplingDistanceLabel.innerText = `Sampling Distance: ${this.dem_resolution.toFixed(1)} meters`;
       });
 
+      // MESH LAYERS //
       const _meshesLayerLabel = document.createElement("label");
       _meshesLayerLabel.setAttribute("for", "volume-layer-input");
       _meshesLayerLabel.classList.add("leader-half", "trailer-0");
@@ -167,11 +171,13 @@ define([
         }
       });
 
+      // HINT NODE //
       this._hintNode = document.createElement("div");
       this._hintNode.classList.add("panel", "panel-white", "panel-no-border", "hide");
       this._hintNode.innerText = "Start to measure by clicking in the scene to place your first point";
       this.container.append(this._hintNode);
 
+      // CONTENT NODE //
       this._contentNode = document.createElement("div");
       this._contentNode.classList.add("hide");
       this.container.append(this._contentNode);
@@ -271,10 +277,9 @@ define([
 
     /**
      *
-     * @param view
      * @private
      */
-    _initializeMeshLayers: function(view){
+    _initializeMeshLayers: function(){
 
       const baselineSymbol = { type: "simple-line", color: Color.named.dodgerblue };
       this._meshBaselineLayer = new GraphicsLayer({
@@ -286,7 +291,7 @@ define([
       const compareSymbol = { type: "simple-line", color: Color.named.orange };
       this._meshCompareLayer = new GraphicsLayer({
         title: "Compare Mesh Layer",
-        elevationInfo: { mode: "absolute-height" },
+        elevationInfo: { mode: "on-the-ground" },
         visible: this.meshLayersDefaultVisible
       });
       this.view.map.addMany([
@@ -317,7 +322,7 @@ define([
       // TODO: WHAT IF THERE ARE NO ELEVATION LAYERS IN THE GROUND? IS THAT EVEN POSSIBLE?
       //
 
-      this.elevationLayers.forEach(layer => {
+      this.elevationLayers.reverse().forEach((layer, layerIdx) => {
 
         const _baselineLayerOption = document.createElement("option");
         _baselineLayerOption.innerText = layer.title;
@@ -330,34 +335,35 @@ define([
         this._compareLayerSelect.append(_compareLayerOption);
 
       });
-      this._compareLayerSelect.selectedIndex = 1;
+      this._baselineLayerSelect.selectedIndex = (this.elevationLayers.length - 1);
+      this._compareLayerSelect.selectedIndex = 0;
 
-      this.findElevationLayer = (layer_name) => {
+      const _findElevationLayer = (layer_name) => {
         return this.elevationLayers.find(layer => {
-          return (layer.title === layer_name);
+          return ((layer.title === layer_name) && (layer.type === 'elevation')) ;
         });
       };
 
       this.watch("baselineLayerName", baselineLayerName => {
         this._baselineLayerSelect.value = baselineLayerName;
-        this._baselineLayer = this.findElevationLayer(baselineLayerName);
+        this._baselineLayer = _findElevationLayer(baselineLayerName);
       });
 
       this.watch("compareLayerName", compareLayerName => {
         this._compareLayerSelect.value = compareLayerName;
-        this._compareLayer = this.findElevationLayer(compareLayerName);
+        this._compareLayer =_findElevationLayer(compareLayerName);
       });
 
       on(this._baselineLayerSelect, "change", () => {
-        this._baselineLayer = this.findElevationLayer(this._baselineLayerSelect.value);
+        this._baselineLayer = _findElevationLayer(this._baselineLayerSelect.value);
       });
 
       on(this._compareLayerSelect, "change", () => {
-        this._compareLayer = this.findElevationLayer(this._compareLayerSelect.value);
+        this._compareLayer = _findElevationLayer(this._compareLayerSelect.value);
       });
 
-      this._baselineLayer = this.findElevationLayer(this._baselineLayerSelect.value);
-      this._compareLayer = this.findElevationLayer(this._compareLayerSelect.value);
+      this._baselineLayer = _findElevationLayer(this._baselineLayerSelect.value);
+      this._compareLayer = _findElevationLayer(this._compareLayerSelect.value);
 
     },
 
@@ -395,7 +401,7 @@ define([
 
       let calc_mesh_handle = null;
       let calc_volume_handle = null;
-      const calculateVolume = (polygon) => {
+      const _calculateVolume = (polygon) => {
         if(polygon.rings[0].length > 3){
 
           calc_volume_handle && (!calc_volume_handle.isFulfilled()) && calc_volume_handle.cancel();
@@ -408,7 +414,7 @@ define([
           });
 
           calc_mesh_handle && (!calc_mesh_handle.isFulfilled()) && calc_mesh_handle.cancel();
-          calc_mesh_handle = this.createGridMesh(polygon, this.dem_resolution).then(gridMeshInfos => {
+          calc_mesh_handle = this.createMeshGeometry(polygon, this.dem_resolution).then(gridMeshInfos => {
             this.addMeshes(gridMeshInfos);
           });
 
@@ -421,14 +427,14 @@ define([
             this.emit("measurement-started", {});
             break;
           case "complete":
-            calculateVolume(evt.graphic.geometry);
+            _calculateVolume(evt.graphic.geometry);
             break;
         }
       });
 
       sketchVM.on("update", (evt) => {
         if(evt.state === "complete"){
-          calculateVolume(evt.graphics[0].geometry);
+          _calculateVolume(evt.graphics[0].geometry);
         }
       });
 
@@ -544,7 +550,7 @@ define([
      * @param polygon
      * @param resolution
      */
-    createGridMesh: function(polygon, resolution){
+    createMeshGeometry: function(polygon, resolution){
 
       const demResolution = (resolution / 4.0);
 
@@ -555,7 +561,7 @@ define([
         paths: boundary.paths
       });
 
-      const extent = polygon.extent;
+      const extent = polygon.extent.clone().expand(1.1);
       for(let y_coord = extent.ymin; y_coord < extent.ymax; y_coord += demResolution){
         gridMeshLines.addPath([[extent.xmin, y_coord], [extent.xmax, y_coord]]);
       }
@@ -569,10 +575,7 @@ define([
       const queryOptions = { demResolution: demResolution };
       return this._baselineLayer.queryElevation(clippedGridMeshLines, queryOptions).then(baselineResult => {
         return this._compareLayer.queryElevation(clippedGridMeshLines, queryOptions).then(compareResult => {
-          return {
-            baseline: baselineResult.geometry,
-            compare: compareResult.geometry
-          };
+          return { baseline: baselineResult.geometry, compare: compareResult.geometry };
         });
       });
 

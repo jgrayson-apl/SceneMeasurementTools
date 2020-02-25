@@ -1,0 +1,161 @@
+html,
+body {
+  margin                   : 0;
+  padding                  : 0;
+  width                    : 100%;
+  height                   : 100%;
+  font-size                : 100%;
+  -webkit-text-size-adjust : 100%;
+  -moz-text-size-adjust    : 100%;
+  -ms-text-size-adjust     : 100%;
+}
+
+body {
+  display        : flex;
+  flex-direction : column;
+}
+
+body * {
+  outline : none;
+}
+
+.configurable-application--loading {
+  background : #fff url(../assets/loader-ie9.gif) no-repeat center center;
+}
+
+#header-panel {
+  flex-shrink : 0;
+  flex-grow   : 0;
+  z-index     : 99;
+  box-shadow  : 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#main-container {
+  flex-shrink    : 1;
+  flex-grow      : 1;
+  min-width      : 0;
+  min-height     : 0;
+  display        : flex;
+  flex-direction : row;
+}
+
+#view-container {
+  flex-shrink      : 1;
+  flex-grow        : 1;
+  min-width        : 0;
+  min-height       : 0;
+  background-color : #595959;
+}
+
+#user-thumb-node {
+  height         : 36px;
+  border-radius  : 18px;
+  vertical-align : middle;
+}
+
+.top-nav-link:hover, .top-nav-link:focus {
+  color               : #fff;
+  border-bottom-color : #fff;
+}
+
+#details-dialog-content {
+  color            : #fff !important;
+  background-color : #595959 !important;
+}
+
+.measure-btn {
+  padding-right : 0.75rem;
+  padding-left  : 0.75rem;
+}
+
+/*.esri-widget {
+  color            : #fff !important;
+  background-color : #595959 !important;
+}*/
+
+.esri-widget--button {
+  color            : #fff !important;
+  background-color : #595959 !important;
+}
+
+/*.esri-button--secondary {
+  background-color : transparent;
+  color            : #fff;
+}*/
+
+.esri-attribution {
+  color            : #fff !important;
+  background-color : rgba(89, 89, 89, 0.5) !important;
+}
+
+.esri-attribution:hover {
+  background-color : rgba(89, 89, 89, 0.8) !important;
+}
+
+.esri-ui-corner .esri-expand .esri-widget--panel,
+.esri-ui-corner .esri-expand .esri-widget--panel-height-only,
+.esri-ui-corner .esri-component .esri-widget--panel,
+.esri-ui-corner .esri-component.esri-widget--panel {
+  width : unset !important;
+}
+
+.view-loading-node {
+  box-shadow : none !important;
+}
+
+.view-loading-node .loader-text {
+  padding-top : 3em !important;
+}
+
+@keyframes load {
+  0%, 80%, 100% {
+    opacity    : .75;
+    box-shadow : 0 0 #fff;
+    height     : 2rem
+  }
+
+  40% {
+    opacity    : 1;
+    box-shadow : 0 -0.5rem #fff;
+    height     : 2.5rem
+  }
+}
+
+.loader-bars:before,
+.loader-bars:after,
+.loader-bars {
+  background : #fff;
+}
+
+.side-nav-link:last-of-type {
+  border-bottom : solid 1px #efefef;
+}
+
+.mission-node {
+  border-left : solid 6px transparent;
+}
+
+.mission-node:hover {
+  border-left-color : #bcdaed;
+}
+
+.mission-node.selected {
+  border-left-color : #0079c1;
+}
+
+.mission-details {
+  height : 1.2rem;
+}
+
+.mission-baseline {
+  /*pointer-events : none;*/
+  border-right : solid 6px #6e9963;
+}
+
+.icon-ui-share.view-2D {
+  transform : rotateZ(180deg);
+}
+
+.icon-ui-share.view-3D {
+  transform : rotateZ(135deg);
+}

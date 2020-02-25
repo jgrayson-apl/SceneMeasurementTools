@@ -261,8 +261,8 @@ define([
       // INITIALIZE LAYER LIST //
       this._initializeLayerList();
 
-      // VOLUMES LAYER //
-      this._initializeVolumeLayer();
+      // MESH LAYERS //
+      this._initializeMeshLayers();
 
       // INITIALIZE SKETCH //
       this.initializeSketch();
@@ -274,7 +274,7 @@ define([
      * @param view
      * @private
      */
-    _initializeVolumeLayer: function(view){
+    _initializeMeshLayers: function(view){
 
       const baselineSymbol = { type: "simple-line", color: Color.named.dodgerblue };
       this._meshBaselineLayer = new GraphicsLayer({

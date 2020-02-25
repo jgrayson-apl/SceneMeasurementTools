@@ -340,7 +340,7 @@ define([
 
       const _findElevationLayer = (layer_name) => {
         return this.elevationLayers.find(layer => {
-          return ((layer.title === layer_name) && (layer.type === 'elevation')) ;
+          return ((layer.title === layer_name) && (layer.type === 'elevation'));
         });
       };
 
@@ -351,7 +351,7 @@ define([
 
       this.watch("compareLayerName", compareLayerName => {
         this._compareLayerSelect.value = compareLayerName;
-        this._compareLayer =_findElevationLayer(compareLayerName);
+        this._compareLayer = _findElevationLayer(compareLayerName);
       });
 
       on(this._baselineLayerSelect, "change", () => {
@@ -555,11 +555,7 @@ define([
       const demResolution = (resolution / 4.0);
 
       const boundary = this._polygonToPolyline(polygon);
-
-      const gridMeshLines = new Polyline({
-        spatialReference: polygon.spatialReference,
-        paths: boundary.paths
-      });
+      const gridMeshLines = new Polyline({ spatialReference: polygon.spatialReference, paths: boundary.paths });
 
       const extent = polygon.extent.clone().expand(1.1);
       for(let y_coord = extent.ymin; y_coord < extent.ymax; y_coord += demResolution){
@@ -592,10 +588,7 @@ define([
       const query_options = { demResolution: demResolution };
       return this._baselineLayer.queryElevation(sample_points, query_options).then(baselineResult => {
         return this._compareLayer.queryElevation(sample_points, query_options).then(compareResult => {
-          return {
-            baseline_points: baselineResult.geometry.points,
-            compare_points: compareResult.geometry.points
-          };
+          return { baseline_points: baselineResult.geometry.points, compare_points: compareResult.geometry.points };
         });
       });
     },

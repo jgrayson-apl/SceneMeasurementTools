@@ -1,4 +1,4 @@
-# SceneMeasurementTools
+# Scene Measurement Tools
 Interactive scene tool to calculate distance, area, and volume measurements.
 
-Test app: https://apl.esri.com/jg/SceneMeasurementTools/index.html
+Demo: https://apl.esri.com/jg/SceneMeasurementTools/index.html

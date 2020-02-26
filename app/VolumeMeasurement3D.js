@@ -550,25 +550,25 @@ define([
     /**
      *
      * @param polygon
-     * @param resolution
+     * @param demResolution
      */
-    createMeshGeometry: function(polygon, resolution){
+    createMeshGeometry: function(polygon, demResolution){
 
-      const demResolution = (resolution * 0.5);
+      const samplingDistance = (demResolution * 0.5);
 
       const boundary = this._polygonToPolyline(polygon);
       const gridMeshLines = new Polyline({ spatialReference: polygon.spatialReference, paths: boundary.paths });
 
       const extent = polygon.extent.clone().expand(1.1);
-      for(let y_coord = extent.ymin; y_coord < extent.ymax; y_coord += demResolution){
+      for(let y_coord = extent.ymin; y_coord < extent.ymax; y_coord += samplingDistance){
         gridMeshLines.addPath([[extent.xmin, y_coord], [extent.xmax, y_coord]]);
       }
-      for(let x_coord = extent.xmin; x_coord < extent.xmax; x_coord += demResolution){
+      for(let x_coord = extent.xmin; x_coord < extent.xmax; x_coord += samplingDistance){
         gridMeshLines.addPath([[x_coord, extent.ymin], [x_coord, extent.ymax]]);
       }
 
       let clippedGridMeshLines = geometryEngine.cut(gridMeshLines, boundary)[1];
-      clippedGridMeshLines = geometryEngine.geodesicDensify(clippedGridMeshLines, 1.0, "meters");
+      clippedGridMeshLines = geometryEngine.geodesicDensify(clippedGridMeshLines, samplingDistance, "meters");
 
       const queryOptions = { demResolution: demResolution };
       return this._baselineLayer.queryElevation(clippedGridMeshLines, queryOptions).then(baselineResult => {

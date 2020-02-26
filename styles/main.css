@@ -159,3 +159,15 @@ body * {
 .icon-ui-share.view-3D {
   transform : rotateZ(135deg);
 }
+
+.text-dodgerblue {
+  padding-left : 0.5rem;
+  border-left  : solid 6px dodgerblue;
+  /*color        : dodgerblue;*/
+}
+
+.text-orange {
+  padding-left : 0.5rem;
+  border-left  : solid 6px orange;
+  /*color        : orange;*/
+}

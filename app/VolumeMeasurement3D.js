@@ -42,6 +42,12 @@ define([
       }
     },
 
+    /**
+     *
+     * @param geometries
+     * @param options
+     * @returns {Promise}
+     */
     queryElevation: function(geometries, options){
       return promiseUtils.create((resolve, reject) => {
         let geometriesWithZ;
@@ -56,6 +62,14 @@ define([
       });
     },
 
+    /**
+     *
+     * @param geometry
+     * @param newZ
+     * @param options
+     * @returns {*}
+     * @private
+     */
     _setGeometryZ: function(geometry, newZ, options){
       switch(geometry.type){
         case "point":
@@ -89,12 +103,26 @@ define([
       }
     },
 
+    /**
+     *
+     * @param point
+     * @param newZ
+     * @returns {*}
+     * @private
+     */
     _setPointZ: function(point, newZ){
       point.hasZ = true;
       point.z = newZ;
       return point;
     },
 
+    /**
+     *
+     * @param extent
+     * @param newZ
+     * @returns {*}
+     * @private
+     */
     _setExtentZ: function(extent, newZ){
       extent.hasZ = true;
       extent.zmin = newZ;
@@ -102,12 +130,28 @@ define([
       return extent;
     },
 
+    /**
+     *
+     * @param parts
+     * @param newZ
+     * @param hasM
+     * @returns {*}
+     * @private
+     */
     _setPartsZ: function(parts, newZ, hasM){
       return parts.map(part => {
         return this._setPartZ(part, newZ, hasM);
       })
     },
 
+    /**
+     *
+     * @param part
+     * @param newZ
+     * @param hasM
+     * @returns {*}
+     * @private
+     */
     _setPartZ: function(part, newZ, hasM){
       return part.map(coords => {
         return hasM ? [coords[0], coords[1], coords[2], newZ] : [coords[0], coords[1], newZ];
@@ -188,6 +232,7 @@ define([
       // BASELINE //
       const _baselineLayerLabel = document.createElement("div");
       _baselineLayerLabel.innerText = "Base Elevation Source";
+      _baselineLayerLabel.classList.add("text-dodgerblue");
       _optionsPanel.append(_baselineLayerLabel);
 
       this._baselineLayerSelect = document.createElement("select");
@@ -196,7 +241,7 @@ define([
 
       // COMPARE //
       const _compareLayerLabel = document.createElement("div");
-      _compareLayerLabel.classList.add("leader-quarter");
+      _compareLayerLabel.classList.add("leader-quarter", "text-orange");
       _compareLayerLabel.innerText = "Compare Elevation Source";
       _optionsPanel.append(_compareLayerLabel);
 
@@ -212,14 +257,17 @@ define([
 
       const _samplingDistanceInput = document.createElement("input");
       _samplingDistanceInput.setAttribute("type", "range");
-      _samplingDistanceInput.setAttribute("min", "0.5");
-      _samplingDistanceInput.setAttribute("max", "10.0");
-      _samplingDistanceInput.setAttribute("step", "0.5");
+      _samplingDistanceInput.setAttribute("min", "1.0");
+      _samplingDistanceInput.setAttribute("max", "30.0");
+      _samplingDistanceInput.setAttribute("step", "1.0");
       _samplingDistanceInput.setAttribute("value", this.dem_resolution);
       _optionsPanel.append(_samplingDistanceInput);
       on(_samplingDistanceInput, "input", () => {
         this.dem_resolution = _samplingDistanceInput.valueAsNumber;
         _samplingDistanceLabel.innerText = `Sampling Distance: ${this.dem_resolution.toFixed(1)} meters`;
+      });
+      on(_samplingDistanceInput, "change", () => {
+        this._recalculateVolume();
       });
 
       // MESH LAYERS //
@@ -339,8 +387,8 @@ define([
      */
     _initialize: function(){
 
-      // INITIALIZE LAYER LIST //
-      this._initializeLayerList();
+      // ELEVATION SOURCES //
+      this._initializeElevationSourceList();
 
       // MESH LAYERS //
       this._initializeMeshLayers();
@@ -394,12 +442,16 @@ define([
      *
      * @private
      */
-    _initializeLayerList: function(){
+    _initializeElevationSourceList: function(){
 
       //
       // TODO: WHAT IF THERE ARE NO ELEVATION LAYERS IN THE GROUND? IS THAT EVEN POSSIBLE?
       //
 
+      /**
+       *
+       * @param elevation
+       */
       this.addElevationPlane = (elevation) => {
 
         const _baselineLayerOption = document.createElement("option");
@@ -437,23 +489,25 @@ define([
       const _findElevationSource = (sourceInfo) => {
         const sourceParts = sourceInfo.split("-");
         const sourceType = sourceParts[1];
-        const sourceID = sourceParts[2];
+        const sourceIDorElevation = sourceParts[2];
 
         if(sourceType === "layer"){
           return this.elevationLayers.find(layer => {
-            return (layer.id === sourceID);
+            return (layer.id === sourceIDorElevation);
           });
         } else {
-          return new ElevationPlane({ elevation: Number(sourceID) })
+          return new ElevationPlane({ elevation: Number(sourceIDorElevation) })
         }
       };
 
       on(this._baselineLayerSelect, "change", () => {
         this._baselineSource = _findElevationSource(this._baselineLayerSelect.value);
+        this._recalculateVolume();
       });
 
       on(this._compareLayerSelect, "change", () => {
         this._compareSource = _findElevationSource(this._compareLayerSelect.value);
+        this._recalculateVolume();
       });
 
       this._baselineSource = _findElevationSource(this._baselineLayerSelect.value);
@@ -468,8 +522,8 @@ define([
 
       // HIGHLIGHT //
       this.view.highlightOptions = {
-        color: "#fff",
-        haloOpacity: 0.8,
+        color: "#ffffff",
+        haloOpacity: 0.3,
         fillOpacity: 0.0
       };
 
@@ -482,6 +536,11 @@ define([
         view: this.view,
         layer: sketchLayer,
         defaultUpdateOptions: { tool: "reshape" },
+        polylineSymbol: {
+          type: "line-3d",
+          material: { color: [255, 255, 255, 1.0] },
+          size: 1.2
+        },
         polygonSymbol: {
           type: "polygon-3d",
           symbolLayers: [
@@ -494,13 +553,15 @@ define([
         }
       });
 
+      let _sketchPolygon = null;
+
       let calc_mesh_handle = null;
       let calc_volume_handle = null;
-      const __calculateVolume = (polygon) => {
-        if(polygon.rings[0].length > 3){
+      const __calculateVolume = () => {
+        if(_sketchPolygon && _sketchPolygon.rings[0].length > 3){
 
           calc_volume_handle && (!calc_volume_handle.isFulfilled()) && calc_volume_handle.cancel();
-          calc_volume_handle = this._calculateVolume(polygon, this.dem_resolution).then(volume_infos => {
+          calc_volume_handle = this._calculateVolume(_sketchPolygon, this.dem_resolution).then(volume_infos => {
 
             this._cutNode.innerText = number.format(volume_infos.cut, { places: 1 });
             this._fillNode.innerText = number.format(volume_infos.fill, { places: 1 });
@@ -509,20 +570,23 @@ define([
           });
 
           calc_mesh_handle && (!calc_mesh_handle.isFulfilled()) && calc_mesh_handle.cancel();
-          calc_mesh_handle = this._createMeshGeometry(polygon, this.dem_resolution).then(gridMeshInfos => {
+          calc_mesh_handle = this._createMeshGeometry(_sketchPolygon, this.dem_resolution).then(gridMeshInfos => {
             this._addMeshes(gridMeshInfos);
           });
 
         }
       };
 
+
       sketchVM.on("create", (evt) => {
         switch(evt.state){
           case "start":
+            _sketchPolygon = null;
             this.emit("measurement-started", {});
             break;
           case "complete":
-            __calculateVolume(evt.graphic.geometry);
+            _sketchPolygon = evt.graphic.geometry;
+            __calculateVolume();
             break;
         }
       });
@@ -534,20 +598,27 @@ define([
             break;
           case "cancel":
           case "complete":
-            __calculateVolume(evt.graphics[0].geometry);
+            _sketchPolygon = evt.graphics[0].geometry;
+            __calculateVolume();
             break;
         }
       });
 
       this.createVolumeSketch = () => {
+        _sketchPolygon = null;
         sketchVM.create("polygon");
         this.view.focus();
       };
 
       this.clearVolumeSketch = () => {
+        _sketchPolygon = null;
         sketchLayer.removeAll();
         sketchVM.cancel();
       };
+
+      this._recalculateVolume = () => {
+        __calculateVolume();
+      }
 
     },
 

@@ -15,6 +15,7 @@ define([
   "dojo/colors",
   "esri/core/Accessor",
   "esri/core/Evented",
+  "esri/core/promiseUtils",
   "esri/views/SceneView",
   "esri/geometry/Point",
   "esri/geometry/Multipoint",
@@ -27,9 +28,93 @@ define([
   "esri/layers/ElevationLayer",
   "esri/widgets/Sketch/SketchViewModel"
 ], function(on, number, Color, colors,
-            Accessor, Evented, SceneView,
-            Point, Multipoint, Extent, Polyline, Polygon, geometryEngine,
+            Accessor, Evented, promiseUtils,
+            SceneView, Point, Multipoint, Extent, Polyline, Polygon, geometryEngine,
             Graphic, GraphicsLayer, ElevationLayer, SketchViewModel){
+
+
+  const ElevationPlane = Accessor.createSubclass([Evented], {
+    declaredClass: "ElevationPlane",
+
+    properties: {
+      elevation: {
+        type: Number
+      }
+    },
+
+    queryElevation: function(geometries, options){
+      return promiseUtils.create((resolve, reject) => {
+        let geometriesWithZ;
+        if(Array.isArray(geometries)){
+          geometriesWithZ = geometries.map(geometry => {
+            return this._setGeometryZ(geometry, this.elevation, options);
+          });
+        } else {
+          geometriesWithZ = this._setGeometryZ(geometries, this.elevation, options);
+        }
+        resolve({ geometry: geometriesWithZ });
+      });
+    },
+
+    _setGeometryZ: function(geometry, newZ, options){
+      switch(geometry.type){
+        case "point":
+          return this._setPointZ(geometry, newZ);
+        case "extent":
+          return this._setExtentZ(geometry, newZ);
+        case "multipoint":
+          return new Multipoint({
+            spatialReference: geometry.spatialReference,
+            hasM: geometry.hasM, hasZ: true,
+            points: this._setPartZ(geometry.points, newZ, geometry.hasM)
+          });
+        case "polyline":
+          if(options && options.demResolution){
+            geometry = geometryEngine.geodesicDensify(geometry, options.demResolution, "meters");
+          }
+          return new Polyline({
+            spatialReference: geometry.spatialReference,
+            hasM: geometry.hasM, hasZ: true,
+            paths: this._setPartsZ(geometry.paths, newZ, geometry.hasM)
+          });
+        case "polygon":
+          if(options && options.demResolution){
+            geometry = geometryEngine.geodesicDensify(geometry, options.demResolution, "meters");
+          }
+          return new Polygon({
+            spatialReference: geometry.spatialReference,
+            hasM: geometry.hasM, hasZ: true,
+            rings: this._setPartsZ(geometry.rings, newZ, geometry.hasM)
+          });
+      }
+    },
+
+    _setPointZ: function(point, newZ){
+      point.hasZ = true;
+      point.z = newZ;
+      return point;
+    },
+
+    _setExtentZ: function(extent, newZ){
+      extent.hasZ = true;
+      extent.zmin = newZ;
+      extent.zmax = newZ;
+      return extent;
+    },
+
+    _setPartsZ: function(parts, newZ, hasM){
+      return parts.map(part => {
+        return this._setPartZ(part, newZ, hasM);
+      })
+    },
+
+    _setPartZ: function(part, newZ, hasM){
+      return part.map(coords => {
+        return hasM ? [coords[0], coords[1], coords[2], newZ] : [coords[0], coords[1], newZ];
+      });
+    }
+
+  });
 
 
   const VolumeMeasurement3D = Accessor.createSubclass([Evented], {
@@ -54,11 +139,11 @@ define([
       elevationLayers: {
         aliasOf: "view.map.ground.layers"
       },
-      _baselineLayer: {
-        type: ElevationLayer
+      _baselineSource: {
+        type: ElevationLayer | ElevationPlane
       },
-      _compareLayer: {
-        type: ElevationLayer
+      _compareSource: {
+        type: ElevationLayer | ElevationPlane
       },
       _meshBaselineLayer: {
         type: GraphicsLayer
@@ -102,7 +187,7 @@ define([
 
       // BASELINE //
       const _baselineLayerLabel = document.createElement("div");
-      _baselineLayerLabel.innerText = "Base Elevation Layer";
+      _baselineLayerLabel.innerText = "Base Elevation Source";
       _optionsPanel.append(_baselineLayerLabel);
 
       this._baselineLayerSelect = document.createElement("select");
@@ -112,7 +197,7 @@ define([
       // COMPARE //
       const _compareLayerLabel = document.createElement("div");
       _compareLayerLabel.classList.add("leader-quarter");
-      _compareLayerLabel.innerText = "Compare Elevation Layer";
+      _compareLayerLabel.innerText = "Compare Elevation Source";
       _optionsPanel.append(_compareLayerLabel);
 
       this._compareLayerSelect = document.createElement("select");
@@ -271,17 +356,20 @@ define([
      */
     _initializeMeshLayers: function(){
 
+      // 5 CM //
+      const meshVisualizationOffset = 0.05;
+
       const baselineSymbol = { type: "simple-line", color: Color.named.dodgerblue };
       this._meshBaselineLayer = new GraphicsLayer({
         title: "Baseline Mesh Layer",
-        elevationInfo: { mode: "absolute-height" },
+        elevationInfo: { mode: "absolute-height", offset: meshVisualizationOffset },
         visible: this.meshLayersDefaultVisible
       });
 
       const compareSymbol = { type: "simple-line", color: Color.named.orange };
       this._meshCompareLayer = new GraphicsLayer({
         title: "Compare Mesh Layer",
-        elevationInfo: { mode: "absolute-height", offset: 0.05 },
+        elevationInfo: { mode: "absolute-height", offset: meshVisualizationOffset },
         visible: this.meshLayersDefaultVisible
       });
       this.view.map.addMany([
@@ -312,40 +400,64 @@ define([
       // TODO: WHAT IF THERE ARE NO ELEVATION LAYERS IN THE GROUND? IS THAT EVEN POSSIBLE?
       //
 
-      //
+      this.addElevationPlane = (elevation) => {
+
+        const _baselineLayerOption = document.createElement("option");
+        _baselineLayerOption.innerText = `Plane at ${elevation} meters`;
+        _baselineLayerOption.value = `source-plane-${elevation}`;
+        this._baselineLayerSelect.append(_baselineLayerOption);
+
+        const _compareLayerOption = document.createElement("option");
+        _compareLayerOption.innerText = `Plane at ${elevation} meters`;
+        _compareLayerOption.value = `source-plane-${elevation}`;
+        this._compareLayerSelect.append(_compareLayerOption);
+
+      };
+
+      // ELEVATION LAYERS //
       this.elevationLayers.forEach((layer, layerIdx) => {
 
         const _baselineLayerOption = document.createElement("option");
         _baselineLayerOption.innerText = layer.title;
-        _baselineLayerOption.value = layer.id;
+        _baselineLayerOption.value = `source-layer-${layer.id}`;
         this._baselineLayerSelect.append(_baselineLayerOption);
 
         const _compareLayerOption = document.createElement("option");
         _compareLayerOption.innerText = layer.title;
-        _compareLayerOption.value = layer.id;
+        _compareLayerOption.value = `source-layer-${layer.id}`;
         this._compareLayerSelect.append(_compareLayerOption);
 
       });
+
       // INITIAL SELECTION //
       this._baselineLayerSelect.selectedIndex = 0;
       this._compareLayerSelect.selectedIndex = (this.elevationLayers.length - 1);
 
-      // FIND ELEVATION LAYER BY LAYER ID //
-      const _findElevationLayer = (layerId) => {
-        return this.elevationLayers.find(layer => {
-          return (layer.id === layerId);
-        });
+      // FIND ELEVATION SOURCE //
+      const _findElevationSource = (sourceInfo) => {
+        const sourceParts = sourceInfo.split("-");
+        const sourceType = sourceParts[1];
+        const sourceID = sourceParts[2];
+
+        if(sourceType === "layer"){
+          return this.elevationLayers.find(layer => {
+            return (layer.id === sourceID);
+          });
+        } else {
+          return new ElevationPlane({ elevation: Number(sourceID) })
+        }
       };
 
       on(this._baselineLayerSelect, "change", () => {
-        this._baselineLayer = _findElevationLayer(this._baselineLayerSelect.value);
-      });
-      on(this._compareLayerSelect, "change", () => {
-        this._compareLayer = _findElevationLayer(this._compareLayerSelect.value);
+        this._baselineSource = _findElevationSource(this._baselineLayerSelect.value);
       });
 
-      this._baselineLayer = _findElevationLayer(this._baselineLayerSelect.value);
-      this._compareLayer = _findElevationLayer(this._compareLayerSelect.value);
+      on(this._compareLayerSelect, "change", () => {
+        this._compareSource = _findElevationSource(this._compareLayerSelect.value);
+      });
+
+      this._baselineSource = _findElevationSource(this._baselineLayerSelect.value);
+      this._compareSource = _findElevationSource(this._compareLayerSelect.value);
 
     },
 
@@ -554,7 +666,7 @@ define([
      */
     _createMeshGeometry: function(polygon, demResolution){
 
-      const samplingDistance = (demResolution * 0.5);
+      const samplingDistance = (demResolution * 0.25);
 
       const boundary = this._polygonToPolyline(polygon);
       const gridMeshLines = new Polyline({ spatialReference: polygon.spatialReference, paths: boundary.paths });
@@ -570,27 +682,21 @@ define([
       let clippedGridMeshLines = geometryEngine.cut(gridMeshLines, boundary)[1];
       clippedGridMeshLines = geometryEngine.geodesicDensify(clippedGridMeshLines, samplingDistance, "meters");
 
-      const queryOptions = { demResolution: demResolution };
-      return this._baselineLayer.queryElevation(clippedGridMeshLines, queryOptions).then(baselineResult => {
-        return this._compareLayer.queryElevation(clippedGridMeshLines, queryOptions).then(compareResult => {
-          return { baseline: baselineResult.geometry, compare: compareResult.geometry };
-        });
-      });
-
+      return this._interpolateShapeZ(clippedGridMeshLines, demResolution);
     },
 
     /**
      *
-     * @param sample_points
+     * @param geometry
      * @param demResolution
      * @returns {Promise}
      * @private
      */
-    _getElevations: function(sample_points, demResolution){
+    _interpolateShapeZ: function(geometry, demResolution){
       const query_options = { demResolution: demResolution };
-      return this._baselineLayer.queryElevation(sample_points, query_options).then(baselineResult => {
-        return this._compareLayer.queryElevation(sample_points, query_options).then(compareResult => {
-          return { baseline_points: baselineResult.geometry.points, compare_points: compareResult.geometry.points };
+      return this._baselineSource.queryElevation(geometry, query_options).then(baselineResult => {
+        return this._compareSource.queryElevation(geometry, query_options).then(compareResult => {
+          return { baseline: baselineResult.geometry, compare: compareResult.geometry };
         });
       });
     },
@@ -605,9 +711,10 @@ define([
 
       const sampleInfos = this._getSampleInfos(polygon, dem_resolution);
 
-      return this._getElevations(sampleInfos.centers, dem_resolution).then(elevation_infos => {
-        const baselinePoints = elevation_infos.baseline_points;
-        const comparePoints = elevation_infos.compare_points;
+      return this._interpolateShapeZ(sampleInfos.centers, dem_resolution).then(elevation_infos => {
+        const baselinePoints = elevation_infos.baseline.points;
+        const comparePoints = elevation_infos.compare.points;
+
         return comparePoints.reduce((infos, coords, coordsIdx) => {
 
           const sampleArea = sampleInfos.areas[coordsIdx];

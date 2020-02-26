@@ -24,14 +24,12 @@ define([
   "esri/geometry/geometryEngine",
   "esri/Graphic",
   "esri/layers/GraphicsLayer",
-  "esri/layers/FeatureLayer",
   "esri/layers/ElevationLayer",
   "esri/widgets/Sketch/SketchViewModel"
 ], function(on, number, Color, colors,
             Accessor, Evented, SceneView,
             Point, Multipoint, Extent, Polyline, Polygon, geometryEngine,
-            Graphic, GraphicsLayer, FeatureLayer, ElevationLayer,
-            SketchViewModel){
+            Graphic, GraphicsLayer, ElevationLayer, SketchViewModel){
 
 
   const VolumeMeasurement3D = Accessor.createSubclass([Evented], {
@@ -440,7 +438,7 @@ define([
     },
 
     /**
-     * 
+     *
      * @private
      */
     _clearMeasurementValues: function(){
@@ -513,7 +511,7 @@ define([
 
       const boundary = this._polygonToPolyline(polygon);
 
-      const sample_infos = {
+      const sampleInfos = {
         centers: new Multipoint({ spatialReference: polygon.spatialReference, points: [] }),
         areas: []
       };
@@ -529,22 +527,22 @@ define([
           });
 
           if(extent.intersects(polygon)){
-            let sample_area = Polygon.fromExtent(extent);
-            if(geometryEngine.crosses(sample_area, boundary)){
-              const cut_geometries = geometryEngine.cut(sample_area, boundary);
-              if(cut_geometries.length){
-                sample_area = cut_geometries[1];
+            let sampleArea = Polygon.fromExtent(extent);
+            if(geometryEngine.crosses(sampleArea, boundary)){
+              const cutGeometries = geometryEngine.cut(sampleArea, boundary);
+              if(cutGeometries.length){
+                sampleArea = cutGeometries[1];
               }
             }
-            if(sample_area){
-              sample_infos.areas.push(sample_area);
-              sample_infos.centers.addPoint(sample_area.centroid);
+            if(sampleArea){
+              sampleInfos.areas.push(sampleArea);
+              sampleInfos.centers.addPoint(sampleArea.centroid);
             }
           }
         }
       }
 
-      return sample_infos;
+      return sampleInfos;
     },
 
     /**
@@ -603,20 +601,20 @@ define([
      */
     calculateVolume: function(polygon, dem_resolution){
 
-      const sample_infos = this._getSampleInfos(polygon, dem_resolution);
+      const sampleInfos = this._getSampleInfos(polygon, dem_resolution);
 
-      return this._getElevations(sample_infos.centers, dem_resolution).then(elevation_infos => {
-        const baseline_points = elevation_infos.baseline_points;
-        const compare_points = elevation_infos.compare_points;
-        return compare_points.reduce((infos, coord, coordIdx) => {
+      return this._getElevations(sampleInfos.centers, dem_resolution).then(elevation_infos => {
+        const baselinePoints = elevation_infos.baseline_points;
+        const comparePoints = elevation_infos.compare_points;
+        return comparePoints.reduce((infos, coords, coordsIdx) => {
 
-          const sample_area = sample_infos.areas[coordIdx];
-          const area_m2 = geometryEngine.planarArea(sample_area, "square-meters");
+          const sampleArea = sampleInfos.areas[coordsIdx];
+          const area_m2 = geometryEngine.planarArea(sampleArea, "square-meters");
 
-          const baseline_z = baseline_points[coordIdx][2];
-          const compare_z = coord[2];
-          const height_diff = (compare_z - baseline_z);
-          const volume = (height_diff * area_m2);
+          const baselineZ = baselinePoints[coordsIdx][2];
+          const compareZ = coords[2];
+          const heightDiff = (compareZ - baselineZ);
+          const volume = (heightDiff * area_m2);
 
           infos.volume += volume;
           if(volume < 0){
@@ -626,10 +624,9 @@ define([
           }
 
           return infos;
-        }, { cut: 0.0, fill: 0.0, volumes: [], volume: 0.0 });
+        }, { volume: 0.0, cut: 0.0, fill: 0.0 });
 
       });
-
     }
 
   });

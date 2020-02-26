@@ -369,6 +369,7 @@ define([
       const sketchVM = new SketchViewModel({
         view: this.view,
         layer: sketchLayer,
+        defaultUpdateOptions: { tool: "reshape" },
         polygonSymbol: {
           type: "polygon-3d",
           symbolLayers: [
@@ -419,6 +420,7 @@ define([
           case "start":
             this._clearMeasurementValues();
             break;
+          case "cancel":
           case "complete":
             _calculateVolume(evt.graphics[0].geometry);
             break;

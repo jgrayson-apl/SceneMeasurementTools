@@ -289,13 +289,13 @@ define([
         this._meshCompareLayer
       ]);
 
-      this.clearMeshes = () => {
+      this._clearMeshes = () => {
         this._meshBaselineLayer.removeAll();
         this._meshCompareLayer.removeAll();
       };
 
-      this.addMeshes = (gridMeshInfos) => {
-        this.clearMeshes();
+      this._addMeshes = (gridMeshInfos) => {
+        this._clearMeshes();
         this._meshBaselineLayer.add(new Graphic({ geometry: gridMeshInfos.baseline, symbol: baselineSymbol }));
         this._meshCompareLayer.add(new Graphic({ geometry: gridMeshInfos.compare, symbol: compareSymbol }));
       };
@@ -384,11 +384,11 @@ define([
 
       let calc_mesh_handle = null;
       let calc_volume_handle = null;
-      const _calculateVolume = (polygon) => {
+      const __calculateVolume = (polygon) => {
         if(polygon.rings[0].length > 3){
 
           calc_volume_handle && (!calc_volume_handle.isFulfilled()) && calc_volume_handle.cancel();
-          calc_volume_handle = this.calculateVolume(polygon, this.dem_resolution).then(volume_infos => {
+          calc_volume_handle = this._calculateVolume(polygon, this.dem_resolution).then(volume_infos => {
 
             this._cutNode.innerText = number.format(volume_infos.cut, { places: 1 });
             this._fillNode.innerText = number.format(volume_infos.fill, { places: 1 });
@@ -397,8 +397,8 @@ define([
           });
 
           calc_mesh_handle && (!calc_mesh_handle.isFulfilled()) && calc_mesh_handle.cancel();
-          calc_mesh_handle = this.createMeshGeometry(polygon, this.dem_resolution).then(gridMeshInfos => {
-            this.addMeshes(gridMeshInfos);
+          calc_mesh_handle = this._createMeshGeometry(polygon, this.dem_resolution).then(gridMeshInfos => {
+            this._addMeshes(gridMeshInfos);
           });
 
         }
@@ -410,7 +410,7 @@ define([
             this.emit("measurement-started", {});
             break;
           case "complete":
-            _calculateVolume(evt.graphic.geometry);
+            __calculateVolume(evt.graphic.geometry);
             break;
         }
       });
@@ -422,7 +422,7 @@ define([
             break;
           case "cancel":
           case "complete":
-            _calculateVolume(evt.graphics[0].geometry);
+            __calculateVolume(evt.graphics[0].geometry);
             break;
         }
       });
@@ -445,7 +445,7 @@ define([
      */
     _clearMeasurementValues: function(){
 
-      this.clearMeshes();
+      this._clearMeshes();
       this._cutNode.innerText = "0.0";
       this._fillNode.innerText = "0.0";
       this._volumeNode.innerText = "0.0";
@@ -457,7 +457,7 @@ define([
      */
     clearMeasurement: function(){
 
-      this.clearMeshes();
+      this._clearMeshes();
       this.clearVolumeSketch();
       this._newMeasurementNode.classList.remove("hide");
       this._hintNode.classList.add("hide");
@@ -473,7 +473,7 @@ define([
      */
     newMeasurement: function(){
 
-      this.clearMeshes();
+      this._clearMeshes();
       this.clearVolumeSketch();
       this._newMeasurementNode.classList.add("hide");
       this._contentNode.classList.add("hide");
@@ -552,7 +552,7 @@ define([
      * @param polygon
      * @param demResolution
      */
-    createMeshGeometry: function(polygon, demResolution){
+    _createMeshGeometry: function(polygon, demResolution){
 
       const samplingDistance = (demResolution * 0.5);
 
@@ -601,7 +601,7 @@ define([
      * @param dem_resolution
      * @returns {Promise}
      */
-    calculateVolume: function(polygon, dem_resolution){
+    _calculateVolume: function(polygon, dem_resolution){
 
       const sampleInfos = this._getSampleInfos(polygon, dem_resolution);
 

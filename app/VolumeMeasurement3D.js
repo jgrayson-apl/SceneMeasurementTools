@@ -56,14 +56,6 @@ define([
       elevationLayers: {
         aliasOf: "view.map.ground.layers"
       },
-      baselineLayerName: {
-        type: String,
-        dependsOn: ["elevationLayers"]
-      },
-      compareLayerName: {
-        type: String,
-        dependsOn: ["elevationLayers"]
-      },
       _baselineLayer: {
         type: ElevationLayer
       },
@@ -291,7 +283,7 @@ define([
       const compareSymbol = { type: "simple-line", color: Color.named.orange };
       this._meshCompareLayer = new GraphicsLayer({
         title: "Compare Mesh Layer",
-        elevationInfo: { mode: "on-the-ground" },
+        elevationInfo: { mode: "absolute-height", offset: 0.05 },
         visible: this.meshLayersDefaultVisible
       });
       this.view.map.addMany([
@@ -322,42 +314,34 @@ define([
       // TODO: WHAT IF THERE ARE NO ELEVATION LAYERS IN THE GROUND? IS THAT EVEN POSSIBLE?
       //
 
-      this.elevationLayers.reverse().forEach((layer, layerIdx) => {
+      //
+      this.elevationLayers.forEach((layer, layerIdx) => {
 
         const _baselineLayerOption = document.createElement("option");
         _baselineLayerOption.innerText = layer.title;
-        _baselineLayerOption.value = layer.title;
+        _baselineLayerOption.value = layer.id;
         this._baselineLayerSelect.append(_baselineLayerOption);
 
         const _compareLayerOption = document.createElement("option");
         _compareLayerOption.innerText = layer.title;
-        _compareLayerOption.value = layer.title;
+        _compareLayerOption.value = layer.id;
         this._compareLayerSelect.append(_compareLayerOption);
 
       });
-      this._baselineLayerSelect.selectedIndex = (this.elevationLayers.length - 1);
-      this._compareLayerSelect.selectedIndex = 0;
+      // INITIAL SELECTION //
+      this._baselineLayerSelect.selectedIndex = 0;
+      this._compareLayerSelect.selectedIndex = (this.elevationLayers.length - 1);
 
-      const _findElevationLayer = (layer_name) => {
+      // FIND ELEVATION LAYER BY LAYER ID //
+      const _findElevationLayer = (layerId) => {
         return this.elevationLayers.find(layer => {
-          return ((layer.title === layer_name) && (layer.type === 'elevation'));
+          return (layer.id === layerId);
         });
       };
-
-      this.watch("baselineLayerName", baselineLayerName => {
-        this._baselineLayerSelect.value = baselineLayerName;
-        this._baselineLayer = _findElevationLayer(baselineLayerName);
-      });
-
-      this.watch("compareLayerName", compareLayerName => {
-        this._compareLayerSelect.value = compareLayerName;
-        this._compareLayer = _findElevationLayer(compareLayerName);
-      });
 
       on(this._baselineLayerSelect, "change", () => {
         this._baselineLayer = _findElevationLayer(this._baselineLayerSelect.value);
       });
-
       on(this._compareLayerSelect, "change", () => {
         this._compareLayer = _findElevationLayer(this._compareLayerSelect.value);
       });
@@ -552,7 +536,7 @@ define([
      */
     createMeshGeometry: function(polygon, resolution){
 
-      const demResolution = (resolution / 4.0);
+      const demResolution = (resolution * 0.5);
 
       const boundary = this._polygonToPolyline(polygon);
       const gridMeshLines = new Polyline({ spatialReference: polygon.spatialReference, paths: boundary.paths });

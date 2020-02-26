@@ -577,7 +577,7 @@ define([
         }
       };
 
-
+      // CREATE //
       sketchVM.on("create", (evt) => {
         switch(evt.state){
           case "start":
@@ -591,6 +591,7 @@ define([
         }
       });
 
+      // UPDATE //
       sketchVM.on("update", (evt) => {
         switch(evt.state){
           case "start":
@@ -737,7 +738,7 @@ define([
      */
     _createMeshGeometry: function(polygon, demResolution){
 
-      const samplingDistance = (demResolution * 0.25);
+      const samplingDistance = (demResolution * 1.0);
 
       const boundary = this._polygonToPolyline(polygon);
       const gridMeshLines = new Polyline({ spatialReference: polygon.spatialReference, paths: boundary.paths });

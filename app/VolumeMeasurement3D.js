@@ -417,8 +417,13 @@ define([
       });
 
       sketchVM.on("update", (evt) => {
-        if(evt.state === "complete"){
-          _calculateVolume(evt.graphics[0].geometry);
+        switch(evt.state){
+          case "start":
+            this.clearMeasurement(true);
+            break;
+          case "complete":
+            _calculateVolume(evt.graphics[0].geometry);
+            break;
         }
       });
 
@@ -436,11 +441,14 @@ define([
 
     /**
      *
+     * @param ignoreSketch
      */
-    clearMeasurement: function(){
+    clearMeasurement: function(ignoreSketch){
 
+      if(!ignoreSketch){
+        this.clearVolumeSketch();
+      }
       this.clearMeshes();
-      this.clearVolumeSketch();
       this._newMeasurementNode.classList.remove("hide");
       this._hintNode.classList.add("hide");
       this._contentNode.classList.add("hide");

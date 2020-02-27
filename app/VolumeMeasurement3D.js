@@ -296,6 +296,8 @@ define([
           validateElevationInput();
         }
       });
+
+      // INITIAL VALIDATION //
       validateElevationInput();
 
       // SAMPLING DISTANCE //

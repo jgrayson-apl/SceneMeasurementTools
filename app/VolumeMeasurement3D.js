@@ -38,6 +38,10 @@ define([
     declaredClass: "ElevationPlane",
 
     properties: {
+      visible: {
+        type: Boolean,
+        value: false
+      },
       elevation: {
         type: Number
       }
@@ -243,6 +247,7 @@ define([
       this._compareLayerSelect.classList.add("select-full");
       _optionsPanel.append(this._compareLayerSelect);
 
+      // ADD ELEVATION PLANE //
       const _addPlaneLabel = document.createElement("div");
       _addPlaneLabel.innerHTML = "add elevation plane";
       _addPlaneLabel.classList.add("leader-quarter", "esri-interactive", "icon-ui-right");
@@ -297,7 +302,7 @@ define([
 
       // SAMPLING DISTANCE //
       const _samplingDistanceLabel = document.createElement("div");
-      _samplingDistanceLabel.classList.add("leader-half");
+      _samplingDistanceLabel.classList.add("leader-1");
       _samplingDistanceLabel.innerText = `Sampling Distance: ${this.dem_resolution} meters`;
       _optionsPanel.append(_samplingDistanceLabel);
 
@@ -485,7 +490,7 @@ define([
         elevationInfo: { mode: "absolute-height", offset: meshVisualizationOffset },
         visible: this.meshLayersDefaultVisible
       });
-            
+
       this._elevationlabelLayer = new FeatureLayer({
         title: "Elevation Labels Layer",
         elevationInfo: { mode: "absolute-height", offset: meshVisualizationOffset },
@@ -550,6 +555,9 @@ define([
 
       this._addMeshes = (meshInfos) => {
         this._clearMeshes();
+
+        // this._meshBaselineLayer.elevationInfo = { mode: this._baselineSource.visible ? "on-the-ground" : "absolute-height" };
+        // this._meshCompareLayer.elevationInfo = { mode: this._compareSource.visible ? "on-the-ground" : "absolute-height" };
 
         this._meshBaselineLayer.add(new Graphic({ geometry: meshInfos.meshes.baseline, symbol: baselineSymbol }));
         this._meshCompareLayer.add(new Graphic({ geometry: meshInfos.meshes.compare, symbol: compareSymbol }));

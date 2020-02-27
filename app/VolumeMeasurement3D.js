@@ -271,17 +271,32 @@ define([
       _addPlaneElevationInput.classList.add("input-group-input");
       _addPlaneElevationInput.setAttribute("type", "number");
       _addPlaneElevationInput.setAttribute("placeholder", "elevation in meters");
-      //_addPlaneElevationInput.setAttribute("value", "0.0");
+      _addPlaneElevationInput.setAttribute("required", "true");
       _addPlaneInputGroup.append(_addPlaneElevationInput);
+
+      const validateElevationInput = () => {
+        _addPlaneElevationInput.classList.toggle("input-success", _addPlaneElevationInput.validity.valid);
+        _addPlaneElevationInput.classList.toggle("input-error", !_addPlaneElevationInput.validity.valid);
+        _addPlaneBtn.classList.toggle("btn-disabled", !_addPlaneElevationInput.validity.valid);
+      };
+      on(_addPlaneElevationInput, "input", validateElevationInput);
 
       const _addPlaneInputGroupButton = document.createElement("span");
       _addPlaneInputGroupButton.classList.add("input-group-button");
       _addPlaneInputGroup.append(_addPlaneInputGroupButton);
 
       const _addPlaneBtn = document.createElement("button");
-      _addPlaneBtn.classList.add("btn", "btn-small", "btn-clear");
+      _addPlaneBtn.classList.add("btn", "btn-small", "btn-clear", "btn-disabled");
       _addPlaneBtn.innerHTML = "add";
       _addPlaneInputGroupButton.append(_addPlaneBtn);
+      on(_addPlaneBtn, "click", () => {
+        if(_addPlaneElevationInput.validity.valid){
+          this.addElevationPlane(_addPlaneElevationInput.valueAsNumber);
+          _addPlaneElevationInput.value = null;
+          validateElevationInput();
+        }
+      });
+      validateElevationInput();
 
       // SAMPLING DISTANCE //
       const _samplingDistanceLabel = document.createElement("div");

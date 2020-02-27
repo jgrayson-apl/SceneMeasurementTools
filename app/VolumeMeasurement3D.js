@@ -25,12 +25,13 @@ define([
   "esri/geometry/geometryEngine",
   "esri/Graphic",
   "esri/layers/GraphicsLayer",
+  "esri/layers/FeatureLayer",
   "esri/layers/ElevationLayer",
   "esri/widgets/Sketch/SketchViewModel"
 ], function(on, number, Color, colors,
             Accessor, Evented, promiseUtils,
             SceneView, Point, Multipoint, Extent, Polyline, Polygon, geometryEngine,
-            Graphic, GraphicsLayer, ElevationLayer, SketchViewModel){
+            Graphic, GraphicsLayer, FeatureLayer, ElevationLayer, SketchViewModel){
 
 
   const ElevationPlane = Accessor.createSubclass([Evented], {
@@ -73,9 +74,9 @@ define([
     _setGeometryZ: function(geometry, newZ, options){
       switch(geometry.type){
         case "point":
-          return this._setPointZ(geometry, newZ);
+          return this._setPointZ(geometry.clone(), newZ);
         case "extent":
-          return this._setExtentZ(geometry, newZ);
+          return this._setExtentZ(geometry.clone(), newZ);
         case "multipoint":
           return new Multipoint({
             spatialReference: geometry.spatialReference,
@@ -83,18 +84,12 @@ define([
             points: this._setPartZ(geometry.points, newZ, geometry.hasM)
           });
         case "polyline":
-          if(options && options.demResolution){
-            geometry = geometryEngine.geodesicDensify(geometry, options.demResolution, "meters");
-          }
           return new Polyline({
             spatialReference: geometry.spatialReference,
             hasM: geometry.hasM, hasZ: true,
             paths: this._setPartsZ(geometry.paths, newZ, geometry.hasM)
           });
         case "polygon":
-          if(options && options.demResolution){
-            geometry = geometryEngine.geodesicDensify(geometry, options.demResolution, "meters");
-          }
           return new Polygon({
             spatialReference: geometry.spatialReference,
             hasM: geometry.hasM, hasZ: true,
@@ -159,7 +154,6 @@ define([
     }
 
   });
-
 
   const VolumeMeasurement3D = Accessor.createSubclass([Evented], {
     declaredClass: "VolumeMeasurement3D",
@@ -231,8 +225,8 @@ define([
 
       // BASELINE //
       const _baselineLayerLabel = document.createElement("div");
-      _baselineLayerLabel.innerText = "Base Elevation Source";
       _baselineLayerLabel.classList.add("text-dodgerblue");
+      _baselineLayerLabel.innerText = "Base Elevation Source";
       _optionsPanel.append(_baselineLayerLabel);
 
       this._baselineLayerSelect = document.createElement("select");
@@ -270,6 +264,7 @@ define([
       const _addPlaneElevationInput = document.createElement("input");
       _addPlaneElevationInput.classList.add("input-group-input");
       _addPlaneElevationInput.setAttribute("type", "number");
+      _addPlaneElevationInput.setAttribute("step", "any");
       _addPlaneElevationInput.setAttribute("placeholder", "elevation in meters");
       _addPlaneElevationInput.setAttribute("required", "true");
       _addPlaneInputGroup.append(_addPlaneElevationInput);
@@ -321,27 +316,46 @@ define([
         this._recalculateVolume();
       });
 
-      // MESH LAYERS //
+      // MESHES TOGGLE //
       const _meshesLayerToggle = document.createElement("label");
-      _meshesLayerToggle.innerHTML = "Display Elevation Meshes";
-      _meshesLayerToggle.setAttribute("for", "volume-layer-input");
+      _meshesLayerToggle.innerHTML = "Elevation Meshes";
+      _meshesLayerToggle.setAttribute("for", "mesh-layer-input");
       _meshesLayerToggle.classList.add("leader-half", "trailer-0");
       _optionsPanel.append(_meshesLayerToggle);
 
       this._meshLayersInput = document.createElement("input");
       this._meshLayersInput.classList.add("trailer-0");
-      this._meshLayersInput.setAttribute("id", "volume-layer-input");
+      this._meshLayersInput.setAttribute("id", "mesh-layer-input");
       this._meshLayersInput.setAttribute("type", "checkbox");
       _meshesLayerToggle.append(this._meshLayersInput);
 
       this._meshLayersInput.checked = this.meshLayersDefaultVisible;
-
       on(this._meshLayersInput, "change", () => {
         if(this._meshBaselineLayer){
           this._meshBaselineLayer.visible = this._meshLayersInput.checked;
         }
         if(this._meshCompareLayer){
           this._meshCompareLayer.visible = this._meshLayersInput.checked;
+        }
+      });
+
+      // LABELS TOGGLE //
+      const _labelsLayerToggle = document.createElement("label");
+      _labelsLayerToggle.innerHTML = "Elevation Labels";
+      _labelsLayerToggle.setAttribute("for", "labels-layer-input");
+      _labelsLayerToggle.classList.add("leader-quarter", "trailer-0");
+      _optionsPanel.append(_labelsLayerToggle);
+
+      this._labelsLayersInput = document.createElement("input");
+      this._labelsLayersInput.classList.add("trailer-0");
+      this._labelsLayersInput.setAttribute("id", "labels-layer-input");
+      this._labelsLayersInput.setAttribute("type", "checkbox");
+      _labelsLayerToggle.append(this._labelsLayersInput);
+
+      this._labelsLayersInput.checked = this.meshLayersDefaultVisible;
+      on(this._labelsLayersInput, "change", () => {
+        if(this._elevationlabelLayer){
+          this._elevationlabelLayer.visible = this._labelsLayersInput.checked;
         }
       });
 
@@ -471,20 +485,90 @@ define([
         elevationInfo: { mode: "absolute-height", offset: meshVisualizationOffset },
         visible: this.meshLayersDefaultVisible
       });
+
+      const createLabelSymbol = (text) => {
+        return {
+          type: "label-3d",
+          symbolLayers: [{
+            type: "text",
+            text: text,
+            size: 12,
+            material: { color: Color.named.white },
+            halo: { color: Color.named.black, size: 2.0 }
+          }]
+        }
+      };
+      this._elevationlabelLayer = new FeatureLayer({
+        title: "Elevation Labels Layer",
+        elevationInfo: { mode: "absolute-height", offset: meshVisualizationOffset },
+        visible: this.meshLayersDefaultVisible,
+        geometryType: "point",
+        hasZ: true,
+        spatialReference: this.view.spatialReference,
+        objectIdField: "ObjectID",
+        fields: [
+          { name: "ObjectID", alias: "ObjectID", type: "oid" },
+          { name: "elevation", alias: "Elevation", type: "string" },
+          { name: "coordsIdx", alias: "Coords Index", type: "integer" }
+        ],
+        source: [],
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "point-3d",
+            symbolLayers: [
+              {
+                type: "object",
+                width: 0.25,
+                height: 0.50,
+                resource: { primitive: "diamond" },
+                material: { color: Color.named.white.concat(0.9) }
+              }
+            ]
+          }
+        },
+        labelsVisible: true,
+        labelingInfo: [
+          {
+            labelExpressionInfo: { expression: "$feature.elevation" },
+            symbol: {
+              type: "label-3d",
+              symbolLayers: [{
+                type: "text",
+                size: 12,
+                material: { color: Color.named.white },
+                halo: { color: "#323232", size: 1.0 }
+              }]
+            }
+          }
+        ]
+      });
+
       this.view.map.addMany([
         this._meshBaselineLayer,
-        this._meshCompareLayer
+        this._meshCompareLayer,
+        this._elevationlabelLayer
       ]);
 
       this._clearMeshes = () => {
         this._meshBaselineLayer.removeAll();
         this._meshCompareLayer.removeAll();
+        this._elevationlabelLayer.queryFeatures().then(previousLabelsFS => {
+          if(previousLabelsFS.features.length){
+            this._elevationlabelLayer.applyEdits({ deleteFeatures: previousLabelsFS.features })
+          }
+        });
       };
 
-      this._addMeshes = (gridMeshInfos) => {
+      this._addMeshes = (meshInfos) => {
         this._clearMeshes();
-        this._meshBaselineLayer.add(new Graphic({ geometry: gridMeshInfos.baseline, symbol: baselineSymbol }));
-        this._meshCompareLayer.add(new Graphic({ geometry: gridMeshInfos.compare, symbol: compareSymbol }));
+
+        this._meshBaselineLayer.add(new Graphic({ geometry: meshInfos.meshes.baseline, symbol: baselineSymbol }));
+        this._meshCompareLayer.add(new Graphic({ geometry: meshInfos.meshes.compare, symbol: compareSymbol }));
+
+        this._elevationlabelLayer.queryFeatures().then(previousLabelsFS => {
+          this._elevationlabelLayer.applyEdits({ addFeatures: meshInfos.labelGraphics, deleteFeatures: previousLabelsFS.features })
+        });
       };
 
     },
@@ -494,6 +578,9 @@ define([
      * @private
      */
     _initializeElevationSourceList: function(){
+
+      // ELEVATION PLANES BY ELEVATION //
+      const elevationPlanesByElevation = new Map();
 
       // FIND ELEVATION SOURCE //
       const _findElevationSource = (sourceInfo) => {
@@ -507,48 +594,42 @@ define([
               return (layer.id === layerID_or_elevation);
             });
           case "plane":
-            return new ElevationPlane({ elevation: Number(layerID_or_elevation) });
+            return elevationPlanesByElevation.get(Number(layerID_or_elevation));
           default:
             return null;
         }
       };
 
+      const _addLayerSourceOption = (select, layer) => {
+        const _option = document.createElement("option");
+        _option.innerText = layer.title;
+        _option.value = `source-layer-${layer.id}`;
+        select.append(_option);
+      };
+
+      const _addElevationSourceOption = (select, elevation) => {
+        const _option = document.createElement("option");
+        _option.innerText = `Plane at ${elevation} meters`;
+        _option.value = `source-plane-${elevation}`;
+        select.append(_option);
+      };
+
       //
       // TODO: WHAT IF THERE ARE NO ELEVATION LAYERS IN THE GROUND? IS THAT EVEN POSSIBLE?
       //
+      // ELEVATION LAYERS //
+      this.elevationLayers.forEach(layer => {
+        _addLayerSourceOption(this._baselineLayerSelect, layer);
+        _addLayerSourceOption(this._compareLayerSelect, layer);
+      });
 
-      /**
-       *
-       * @param elevation
-       */
-      this.addElevationPlane = (elevation) => {
-
-        const _baselineLayerOption = document.createElement("option");
-        _baselineLayerOption.innerText = `Plane at ${elevation} meters`;
-        _baselineLayerOption.value = `source-plane-${elevation}`;
-        this._baselineLayerSelect.append(_baselineLayerOption);
-
-        const _compareLayerOption = document.createElement("option");
-        _compareLayerOption.innerText = `Plane at ${elevation} meters`;
-        _compareLayerOption.value = `source-plane-${elevation}`;
-        this._compareLayerSelect.append(_compareLayerOption);
-
+      // ADD ELEVATION PLANE //
+      this.addElevationPlane = elevation => {
+        elevationPlanesByElevation.set(elevation, new ElevationPlane({ elevation: elevation }));
+        _addElevationSourceOption(this._baselineLayerSelect, elevation);
+        _addElevationSourceOption(this._compareLayerSelect, elevation);
       };
 
-      // ELEVATION LAYERS //
-      this.elevationLayers.forEach((layer, layerIdx) => {
-
-        const _baselineLayerOption = document.createElement("option");
-        _baselineLayerOption.innerText = layer.title;
-        _baselineLayerOption.value = `source-layer-${layer.id}`;
-        this._baselineLayerSelect.append(_baselineLayerOption);
-
-        const _compareLayerOption = document.createElement("option");
-        _compareLayerOption.innerText = layer.title;
-        _compareLayerOption.value = `source-layer-${layer.id}`;
-        this._compareLayerSelect.append(_compareLayerOption);
-
-      });
 
       // INITIAL SELECTION //
       this._baselineLayerSelect.selectedIndex = 0;
@@ -625,8 +706,8 @@ define([
           });
 
           calc_mesh_handle && (!calc_mesh_handle.isFulfilled()) && calc_mesh_handle.cancel();
-          calc_mesh_handle = this._createMeshGeometry(_sketchPolygon, this.dem_resolution).then(gridMeshInfos => {
-            this._addMeshes(gridMeshInfos);
+          calc_mesh_handle = this._createMeshGeometry(_sketchPolygon, this.dem_resolution).then(meshInfos => {
+            this._addMeshes(meshInfos);
           });
 
         }
@@ -809,7 +890,23 @@ define([
       let clippedGridMeshLines = geometryEngine.cut(gridMeshLines, boundary)[1];
       clippedGridMeshLines = geometryEngine.geodesicDensify(clippedGridMeshLines, samplingDistance, "meters");
 
-      return this._interpolateShapeZ(clippedGridMeshLines, demResolution);
+      return this._interpolateShapeZ(clippedGridMeshLines, demResolution).then(interpolatedMeshInfos => {
+
+        return this._interpolateShapeZ(boundary, demResolution).then(interpolatedBoundaryInfos => {
+
+          const labelGraphics = [];
+          interpolatedBoundaryInfos.baseline.paths.forEach((path, pathIdx) => {
+            path.forEach((coords, coordsIdx) => {
+              const baselineLocation = interpolatedBoundaryInfos.baseline.getPoint(pathIdx, coordsIdx);
+              const compareLocation = interpolatedBoundaryInfos.compare.getPoint(pathIdx, coordsIdx);
+              labelGraphics.push(new Graphic({ geometry: baselineLocation, attributes: { elevation: baselineLocation.z.toFixed(1), coordsIdx: coordsIdx } }));
+              labelGraphics.push(new Graphic({ geometry: compareLocation, attributes: { elevation: compareLocation.z.toFixed(1), coordsIdx: coordsIdx } }));
+            });
+          });
+
+          return { meshes: interpolatedMeshInfos, labelGraphics: labelGraphics };
+        });
+      });
     },
 
     /**
@@ -824,8 +921,8 @@ define([
       return this._baselineSource.queryElevation(geometry, query_options).then(baselineResult => {
         return this._compareSource.queryElevation(geometry, query_options).then(compareResult => {
           return { baseline: baselineResult.geometry, compare: compareResult.geometry };
-        });
-      });
+        }, console.error);
+      }, console.error);
     },
 
     /**

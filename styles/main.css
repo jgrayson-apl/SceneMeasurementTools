@@ -171,3 +171,7 @@ body * {
   border-left  : solid 6px orange;
   /*color        : orange;*/
 }
+
+.input-group {
+  margin-top : 0 !important;
+}

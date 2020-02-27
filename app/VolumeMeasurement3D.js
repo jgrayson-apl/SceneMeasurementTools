@@ -214,12 +214,12 @@ define([
       this.container.classList.add("text-off-black");
 
       const _toggleNode = document.createElement("div");
-      _toggleNode.classList.add("icon-ui-up", "text-off-black", "esri-interactive", "text-rule");
-      _toggleNode.innerText = "Options";
+      _toggleNode.classList.add("icon-ui-right", "text-off-black", "esri-interactive", "text-rule");
+      _toggleNode.innerText = "Volume Options";
       this.container.append(_toggleNode);
 
       on(_toggleNode, "click", () => {
-        _toggleNode.classList.toggle("icon-ui-up");
+        _toggleNode.classList.toggle("icon-ui-right");
         _toggleNode.classList.toggle("icon-ui-down");
         _toggleNode.classList.toggle("text-rule");
         _optionsPanel.classList.toggle("hide");
@@ -249,6 +249,40 @@ define([
       this._compareLayerSelect.classList.add("select-full");
       _optionsPanel.append(this._compareLayerSelect);
 
+      const _addPlaneLabel = document.createElement("div");
+      _addPlaneLabel.innerHTML = "add elevation plane";
+      _addPlaneLabel.classList.add("leader-quarter", "esri-interactive", "icon-ui-right");
+      _optionsPanel.append(_addPlaneLabel);
+      on(_addPlaneLabel, "click", () => {
+        _addPlaneLabel.classList.toggle("icon-ui-right");
+        _addPlaneLabel.classList.toggle("icon-ui-down");
+        _addPlanePanel.classList.toggle("hide");
+      });
+
+      const _addPlanePanel = document.createElement("div");
+      _addPlanePanel.classList.add("panel", "panel-white", "panel-no-padding", "margin-left-1", "hide");
+      _optionsPanel.append(_addPlanePanel);
+
+      const _addPlaneInputGroup = document.createElement("div");
+      _addPlaneInputGroup.classList.add("input-group");
+      _addPlanePanel.append(_addPlaneInputGroup);
+
+      const _addPlaneElevationInput = document.createElement("input");
+      _addPlaneElevationInput.classList.add("input-group-input");
+      _addPlaneElevationInput.setAttribute("type", "number");
+      _addPlaneElevationInput.setAttribute("placeholder", "elevation in meters");
+      //_addPlaneElevationInput.setAttribute("value", "0.0");
+      _addPlaneInputGroup.append(_addPlaneElevationInput);
+
+      const _addPlaneInputGroupButton = document.createElement("span");
+      _addPlaneInputGroupButton.classList.add("input-group-button");
+      _addPlaneInputGroup.append(_addPlaneInputGroupButton);
+
+      const _addPlaneBtn = document.createElement("button");
+      _addPlaneBtn.classList.add("btn", "btn-small", "btn-clear");
+      _addPlaneBtn.innerHTML = "add";
+      _addPlaneInputGroupButton.append(_addPlaneBtn);
+
       // SAMPLING DISTANCE //
       const _samplingDistanceLabel = document.createElement("div");
       _samplingDistanceLabel.classList.add("leader-half");
@@ -271,17 +305,17 @@ define([
       });
 
       // MESH LAYERS //
-      const _meshesLayerLabel = document.createElement("label");
-      _meshesLayerLabel.setAttribute("for", "volume-layer-input");
-      _meshesLayerLabel.classList.add("leader-half", "trailer-0");
-      _meshesLayerLabel.innerHTML = "Display Elevation Meshes";
-      _optionsPanel.append(_meshesLayerLabel);
+      const _meshesLayerToggle = document.createElement("label");
+      _meshesLayerToggle.innerHTML = "Display Elevation Meshes";
+      _meshesLayerToggle.setAttribute("for", "volume-layer-input");
+      _meshesLayerToggle.classList.add("leader-half", "trailer-0");
+      _optionsPanel.append(_meshesLayerToggle);
 
       this._meshLayersInput = document.createElement("input");
       this._meshLayersInput.classList.add("trailer-0");
       this._meshLayersInput.setAttribute("id", "volume-layer-input");
       this._meshLayersInput.setAttribute("type", "checkbox");
-      _meshesLayerLabel.append(this._meshLayersInput);
+      _meshesLayerToggle.append(this._meshLayersInput);
 
       this._meshLayersInput.checked = this.meshLayersDefaultVisible;
 
@@ -444,6 +478,24 @@ define([
      */
     _initializeElevationSourceList: function(){
 
+      // FIND ELEVATION SOURCE //
+      const _findElevationSource = (sourceInfo) => {
+        const sourceParts = sourceInfo.split("-");
+        const sourceType = sourceParts[1];
+        const layerID_or_elevation = sourceParts[2];
+
+        switch(sourceType){
+          case "layer":
+            return this.elevationLayers.find(layer => {
+              return (layer.id === layerID_or_elevation);
+            });
+          case "plane":
+            return new ElevationPlane({ elevation: Number(layerID_or_elevation) });
+          default:
+            return null;
+        }
+      };
+
       //
       // TODO: WHAT IF THERE ARE NO ELEVATION LAYERS IN THE GROUND? IS THAT EVEN POSSIBLE?
       //
@@ -485,33 +537,19 @@ define([
       this._baselineLayerSelect.selectedIndex = 0;
       this._compareLayerSelect.selectedIndex = (this.elevationLayers.length - 1);
 
-      // FIND ELEVATION SOURCE //
-      const _findElevationSource = (sourceInfo) => {
-        const sourceParts = sourceInfo.split("-");
-        const sourceType = sourceParts[1];
-        const sourceIDorElevation = sourceParts[2];
+      // INITIAL ELEVATION SOURCES //
+      this._baselineSource = _findElevationSource(this._baselineLayerSelect.value);
+      this._compareSource = _findElevationSource(this._compareLayerSelect.value);
 
-        if(sourceType === "layer"){
-          return this.elevationLayers.find(layer => {
-            return (layer.id === sourceIDorElevation);
-          });
-        } else {
-          return new ElevationPlane({ elevation: Number(sourceIDorElevation) })
-        }
-      };
-
+      // ELEVATION SOURCES CHANGE //
       on(this._baselineLayerSelect, "change", () => {
         this._baselineSource = _findElevationSource(this._baselineLayerSelect.value);
         this._recalculateVolume();
       });
-
       on(this._compareLayerSelect, "change", () => {
         this._compareSource = _findElevationSource(this._compareLayerSelect.value);
         this._recalculateVolume();
       });
-
-      this._baselineSource = _findElevationSource(this._baselineLayerSelect.value);
-      this._compareSource = _findElevationSource(this._compareLayerSelect.value);
 
     },
 
@@ -738,7 +776,7 @@ define([
      */
     _createMeshGeometry: function(polygon, demResolution){
 
-      const samplingDistance = (demResolution * 1.0);
+      const samplingDistance = (demResolution * 0.5);
 
       const boundary = this._polygonToPolyline(polygon);
       const gridMeshLines = new Polyline({ spatialReference: polygon.spatialReference, paths: boundary.paths });

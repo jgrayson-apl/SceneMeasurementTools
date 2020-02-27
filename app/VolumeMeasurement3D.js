@@ -485,19 +485,7 @@ define([
         elevationInfo: { mode: "absolute-height", offset: meshVisualizationOffset },
         visible: this.meshLayersDefaultVisible
       });
-
-      const createLabelSymbol = (text) => {
-        return {
-          type: "label-3d",
-          symbolLayers: [{
-            type: "text",
-            text: text,
-            size: 12,
-            material: { color: Color.named.white },
-            halo: { color: Color.named.black, size: 2.0 }
-          }]
-        }
-      };
+            
       this._elevationlabelLayer = new FeatureLayer({
         title: "Elevation Labels Layer",
         elevationInfo: { mode: "absolute-height", offset: meshVisualizationOffset },

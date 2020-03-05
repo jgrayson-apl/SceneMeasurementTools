@@ -58,9 +58,11 @@ body * {
   border-bottom-color : #fff;
 }
 
+#howto-dialog-content,
 #details-dialog-content {
   color            : #fff !important;
   background-color : #595959 !important;
+  height           : max-content;
 }
 
 .measure-btn {

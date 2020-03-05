@@ -25,8 +25,23 @@
         <span class="js-modal-toggle esri-interactive icon-ui-close right" aria-label="close-modal"></span>
         <h3 class="trailer-half text-white">Scene Measurement Tools</h3>
         <div class="panel panel-black">
-          Interactive scene tool to calculate distance, area, and volume measurements.
+          Interactive scene tool to calculate distance, area, and volume measurements. Volume calculations are based on elevation difference at regularly sampled locations within the area of interest.
         </div>
+        <div class="leader-half">
+          <img src="./assets/esri_science_of_where_white.png" class="left">
+          <div class="text-right">
+            <button class="btn btn-clear-white js-modal-toggle">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOW TO VIDEO -->
+    <div class="js-modal modal-overlay" data-modal="howto-dialog">
+      <div id="howto-dialog-content" class="modal-content column-20" aria-labelledby="modal" role="dialog">
+        <span class="js-modal-toggle esri-interactive icon-ui-close right" aria-label="close-modal"></span>
+        <h3 class="trailer-half text-white">How to use the Calculate Volume tool...</h3>
+        <iframe src="./assets/howto/SceneMeasurementTools_player.html" frameborder="0" width="100%"  height="550px"></iframe>
         <div class="leader-half">
           <img src="./assets/esri_science_of_where_white.png" class="left">
           <div class="text-right">
@@ -65,8 +80,11 @@
           </nav>
         </div>
 
+        <!-- HOW TO VIDEO -->
+        <span class="top-nav-link icon-ui-media text-white js-modal-toggle margin-left-1 esri-interactive" title="view how-to video..." data-modal="howto-dialog"></span>
+
         <!-- APP DETAILS -->
-        <span class="top-nav-link icon-ui-description text-white js-modal-toggle margin-left-1 esri-interactive" data-modal="app-details-dialog"></span>
+        <span class="top-nav-link icon-ui-description text-white js-modal-toggle margin-left-1 esri-interactive" title="details..." data-modal="app-details-dialog"></span>
 
       </nav>
     </header>

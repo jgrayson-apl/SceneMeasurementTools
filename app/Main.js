@@ -299,6 +299,9 @@ define([
       //
       this.initializeMeasurement(view);
 
+      // OPEN HOW-TO DIALOG //
+      calcite.bus.emit("modal:open", { id: "howto-dialog" });
+
     },
 
     /**

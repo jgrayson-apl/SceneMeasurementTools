@@ -659,7 +659,7 @@ define([
         fillOpacity: 0.0
       };
 
-      // VOLUME CELLS LAYER //
+      // VOLUME SKETCH LAYER //
       const sketchLayer = new GraphicsLayer({ title: "Sketch Layer" });
       this.view.map.add(sketchLayer);
 
@@ -886,9 +886,9 @@ define([
       let clippedGridMeshLines = geometryEngine.cut(gridMeshLines, boundary)[1];
       clippedGridMeshLines = geometryEngine.geodesicDensify(clippedGridMeshLines, samplingDistance, "meters");
 
-      return this._interpolateShapeZ(clippedGridMeshLines, demResolution).then(interpolatedMeshInfos => {
+      return this._interpolateShape(clippedGridMeshLines, demResolution).then(interpolatedMeshInfos => {
 
-        return this._interpolateShapeZ(boundary, demResolution).then(interpolatedBoundaryInfos => {
+        return this._interpolateShape(boundary, demResolution).then(interpolatedBoundaryInfos => {
 
           const labelGraphics = [];
           interpolatedBoundaryInfos.baseline.paths.forEach((path, pathIdx) => {
@@ -912,7 +912,7 @@ define([
      * @returns {Promise}
      * @private
      */
-    _interpolateShapeZ: function(geometry, demResolution){
+    _interpolateShape: function(geometry, demResolution){
       const query_options = { demResolution: demResolution };
       return this._baselineSource.queryElevation(geometry, query_options).then(baselineResult => {
         return this._compareSource.queryElevation(geometry, query_options).then(compareResult => {
@@ -931,7 +931,7 @@ define([
 
       const sampleInfos = this._getSampleInfos(polygon, dem_resolution);
 
-      return this._interpolateShapeZ(sampleInfos.centers, dem_resolution).then(elevation_infos => {
+      return this._interpolateShape(sampleInfos.centers, dem_resolution).then(elevation_infos => {
         const baselinePoints = elevation_infos.baseline.points;
         const comparePoints = elevation_infos.compare.points;
 

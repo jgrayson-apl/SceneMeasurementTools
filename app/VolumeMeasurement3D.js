@@ -410,6 +410,7 @@ define([
       // FILL //
       //
       const fillLabelNode = document.createElement("div");
+      fillLabelNode.classList.add("leader-quarter");
       fillLabelNode.innerHTML = "Fill";
       _panelNode.append(fillLabelNode);
 
@@ -429,6 +430,7 @@ define([
       // VOLUME //
       //
       const volumeLabelNode = document.createElement("div");
+      volumeLabelNode.classList.add("leader-quarter");
       volumeLabelNode.innerHTML = "Volume Change";
       _panelNode.append(volumeLabelNode);
 

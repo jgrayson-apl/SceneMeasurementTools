@@ -14,7 +14,6 @@ define([
   "dojo/_base/Color",
   "dojo/colors",
   "esri/core/Accessor",
-  "esri/core/Evented",
   "esri/core/promiseUtils",
   "esri/views/SceneView",
   "esri/geometry/Point",
@@ -29,12 +28,15 @@ define([
   "esri/layers/ElevationLayer",
   "esri/widgets/Sketch/SketchViewModel"
 ], function(on, number, Color, colors,
-            Accessor, Evented, promiseUtils,
+            Accessor, promiseUtils,
             SceneView, Point, Multipoint, Extent, Polyline, Polygon, geometryEngine,
             Graphic, GraphicsLayer, FeatureLayer, ElevationLayer, SketchViewModel){
 
 
-  const ElevationPlane = Accessor.createSubclass([Evented], {
+  /**
+   *
+   */
+  const ElevationPlane = Accessor.createSubclass({
     declaredClass: "ElevationPlane",
 
     properties: {
@@ -159,7 +161,10 @@ define([
 
   });
 
-  const VolumeMeasurement3D = Accessor.createSubclass([Evented], {
+  /**
+   *
+   */
+  const VolumeMeasurement3D = Accessor.createSubclass({
     declaredClass: "VolumeMeasurement3D",
 
     properties: {
@@ -203,6 +208,9 @@ define([
       }
     },
 
+    emit: function(type, event){},
+    on: function(type, listener){},
+
     /**
      *
      * @private
@@ -213,7 +221,7 @@ define([
 
       const _toggleNode = document.createElement("div");
       _toggleNode.classList.add("icon-ui-right", "text-off-black", "esri-interactive", "text-rule");
-      _toggleNode.innerText = "Volume Options";
+      _toggleNode.innerHTML = "Volume Options";
       this.container.append(_toggleNode);
 
       on(_toggleNode, "click", () => {
@@ -230,7 +238,7 @@ define([
       // BASELINE //
       const _baselineLayerLabel = document.createElement("div");
       _baselineLayerLabel.classList.add("text-dodgerblue");
-      _baselineLayerLabel.innerText = "Base Elevation Source";
+      _baselineLayerLabel.innerHTML = "Base Elevation Source";
       _optionsPanel.append(_baselineLayerLabel);
 
       this._baselineLayerSelect = document.createElement("select");
@@ -240,7 +248,7 @@ define([
       // COMPARE //
       const _compareLayerLabel = document.createElement("div");
       _compareLayerLabel.classList.add("leader-quarter", "text-orange");
-      _compareLayerLabel.innerText = "Compare Elevation Source";
+      _compareLayerLabel.innerHTML = "Compare Elevation Source";
       _optionsPanel.append(_compareLayerLabel);
 
       this._compareLayerSelect = document.createElement("select");
@@ -303,7 +311,7 @@ define([
       // SAMPLING DISTANCE //
       const _samplingDistanceLabel = document.createElement("div");
       _samplingDistanceLabel.classList.add("leader-1");
-      _samplingDistanceLabel.innerText = `Sampling Distance: ${this.dem_resolution} meters`;
+      _samplingDistanceLabel.innerHTML = `Sampling Distance: ${this.dem_resolution} meters`;
       _optionsPanel.append(_samplingDistanceLabel);
 
       const _samplingDistanceInput = document.createElement("input");
@@ -315,7 +323,7 @@ define([
       _optionsPanel.append(_samplingDistanceInput);
       on(_samplingDistanceInput, "input", () => {
         this.dem_resolution = _samplingDistanceInput.valueAsNumber;
-        _samplingDistanceLabel.innerText = `Sampling Distance: ${this.dem_resolution.toFixed(1)} meters`;
+        _samplingDistanceLabel.innerHTML = `Sampling Distance: ${this.dem_resolution.toFixed(1)} meters`;
       });
       on(_samplingDistanceInput, "change", () => {
         this._recalculateVolume();
@@ -367,7 +375,7 @@ define([
       // HINT NODE //
       this._hintNode = document.createElement("div");
       this._hintNode.classList.add("panel", "panel-white", "panel-no-border", "hide");
-      this._hintNode.innerText = "Start to measure by clicking in the scene to place your first point";
+      this._hintNode.innerHTML = "Start to measure by clicking in the scene to place your first point";
       this.container.append(this._hintNode);
 
       // CONTENT NODE //
@@ -383,7 +391,7 @@ define([
       // CUT //
       //
       const cutLabelNode = document.createElement("div");
-      cutLabelNode.innerText = "Cut";
+      cutLabelNode.innerHTML = "Cut";
       _panelNode.append(cutLabelNode);
 
       const cutParentNode = document.createElement("div");
@@ -391,7 +399,7 @@ define([
       _panelNode.append(cutParentNode);
 
       this._cutNode = document.createElement("span");
-      this._cutNode.innerText = "0.0";
+      this._cutNode.innerHTML = "0.0";
       cutParentNode.append(this._cutNode);
 
       const cutUnitNode = document.createElement("span");
@@ -402,7 +410,7 @@ define([
       // FILL //
       //
       const fillLabelNode = document.createElement("div");
-      fillLabelNode.innerText = "Fill";
+      fillLabelNode.innerHTML = "Fill";
       _panelNode.append(fillLabelNode);
 
       const fillParentNode = document.createElement("div");
@@ -410,7 +418,7 @@ define([
       _panelNode.append(fillParentNode);
 
       this._fillNode = document.createElement("span");
-      this._fillNode.innerText = "0.0";
+      this._fillNode.innerHTML = "0.0";
       fillParentNode.append(this._fillNode);
 
       const fillUnitNode = document.createElement("span");
@@ -421,7 +429,7 @@ define([
       // VOLUME //
       //
       const volumeLabelNode = document.createElement("div");
-      volumeLabelNode.innerText = "Volume Change";
+      volumeLabelNode.innerHTML = "Volume Change";
       _panelNode.append(volumeLabelNode);
 
       const volumeParentNode = document.createElement("div");
@@ -429,12 +437,22 @@ define([
       _panelNode.append(volumeParentNode);
 
       this._volumeNode = document.createElement("span");
-      this._volumeNode.innerText = "0.0";
+      this._volumeNode.innerHTML = "0.0";
       volumeParentNode.append(this._volumeNode);
 
       const volumeUnitNode = document.createElement("span");
       volumeUnitNode.innerHTML = "&nbsp;m<sup>3</sup>";
       volumeParentNode.append(volumeUnitNode);
+
+      // APPROXIMATE LABEL //
+      const approxLabelNode = document.createElement("div");
+      approxLabelNode.classList.add('leader-half');
+      approxLabelNode.classList.add('font-size--3');
+      approxLabelNode.classList.add('avenir-italic');
+      approxLabelNode.classList.add('text-center');
+      approxLabelNode.innerHTML = "approximate measurements";
+      _panelNode.append(approxLabelNode);
+
 
       //
       // NEW MEASUREMENT //
@@ -598,14 +616,14 @@ define([
 
       const _addLayerSourceOption = (select, layer) => {
         const _option = document.createElement("option");
-        _option.innerText = layer.title;
+        _option.innerHTML = layer.title;
         _option.value = `source-layer-${layer.id}`;
         select.append(_option);
       };
 
       const _addElevationSourceOption = (select, elevation) => {
         const _option = document.createElement("option");
-        _option.innerText = `Plane at ${elevation} meters`;
+        _option.innerHTML = `Plane at ${elevation} meters`;
         _option.value = `source-plane-${elevation}`;
         select.append(_option);
       };
@@ -660,7 +678,7 @@ define([
       };
 
       // VOLUME SKETCH LAYER //
-      const sketchLayer = new GraphicsLayer({ title: "Sketch Layer" });
+      const sketchLayer = new GraphicsLayer({ title: "Sketch Layer", elevationInfo: { mode: "on-the-ground" } });
       this.view.map.add(sketchLayer);
 
       // SKETCH VIEW MODEL //
@@ -687,34 +705,28 @@ define([
 
       let _sketchPolygon = null;
 
-      let calc_mesh_handle = null;
-      let calc_volume_handle = null;
-      const __calculateVolume = () => {
+      const __calculateVolume = promiseUtils.debounce(() => {
         if(_sketchPolygon && _sketchPolygon.rings[0].length > 3){
 
-          calc_volume_handle && (!calc_volume_handle.isFulfilled()) && calc_volume_handle.cancel();
-          calc_volume_handle = this._calculateVolume(_sketchPolygon, this.dem_resolution).then(volume_infos => {
-
-            this._cutNode.innerText = number.format(volume_infos.cut, { places: 1 });
-            this._fillNode.innerText = number.format(volume_infos.fill, { places: 1 });
-            this._volumeNode.innerText = number.format(volume_infos.volume, { places: 1 });
-
+          this._calculateVolume(_sketchPolygon, this.dem_resolution).then(volume_infos => {
+            this._cutNode.innerHTML = number.format(volume_infos.cut, { places: 1 });
+            this._fillNode.innerHTML = number.format(volume_infos.fill, { places: 1 });
+            this._volumeNode.innerHTML = number.format(volume_infos.volume, { places: 1 });
           });
 
-          calc_mesh_handle && (!calc_mesh_handle.isFulfilled()) && calc_mesh_handle.cancel();
-          calc_mesh_handle = this._createMeshGeometry(_sketchPolygon, this.dem_resolution).then(meshInfos => {
+          this._createMeshGeometry(_sketchPolygon, this.dem_resolution).then(meshInfos => {
             this._addMeshes(meshInfos);
           });
 
         }
-      };
+      });
 
       // CREATE //
       sketchVM.on("create", (evt) => {
         switch(evt.state){
           case "start":
             _sketchPolygon = null;
-            this.emit("measurement-started", {});
+            this._enableNewMeasurementUI(false);
             break;
           case "complete":
             _sketchPolygon = evt.graphic.geometry;
@@ -762,9 +774,9 @@ define([
     _clearMeasurementValues: function(){
 
       this._clearMeshes();
-      this._cutNode.innerText = "0.0";
-      this._fillNode.innerText = "0.0";
-      this._volumeNode.innerText = "0.0";
+      this._cutNode.innerHTML = "0.0";
+      this._fillNode.innerHTML = "0.0";
+      this._volumeNode.innerHTML = "0.0";
 
     },
 
@@ -778,29 +790,30 @@ define([
       this._newMeasurementNode.classList.remove("hide");
       this._hintNode.classList.add("hide");
       this._contentNode.classList.add("hide");
-      this._cutNode.innerText = "0.0";
-      this._fillNode.innerText = "0.0";
-      this._volumeNode.innerText = "0.0";
+      this._cutNode.innerHTML = "0.0";
+      this._fillNode.innerHTML = "0.0";
+      this._volumeNode.innerHTML = "0.0";
 
+    },
+
+    /**
+     *
+     * @param enabled
+     * @private
+     */
+    _enableNewMeasurementUI: function(enabled){
+      this._hintNode.classList.toggle("hide", !enabled);
+      this._newMeasurementNode.classList.toggle("hide", enabled);
+      this._contentNode.classList.toggle("hide", enabled);
     },
 
     /**
      *
      */
     newMeasurement: function(){
-
       this._clearMeshes();
       this.clearVolumeSketch();
-      this._newMeasurementNode.classList.add("hide");
-      this._contentNode.classList.add("hide");
-      this._hintNode.classList.remove("hide");
-
-      this.on("measurement-started", () => {
-        this._hintNode.classList.add("hide");
-        this._newMeasurementNode.classList.remove("hide");
-        this._contentNode.classList.remove("hide");
-      });
-
+      this._enableNewMeasurementUI(true);
       this.createVolumeSketch();
     },
 

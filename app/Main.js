@@ -147,7 +147,7 @@ define([
 
 
       // USER SIGN IN //
-      return this.initializeUserSignIn(view).always(() => {
+      return this.initializeUserSignIn().catch(console.warn).then(() => {
         // HOME //
         const home = new Home({ view: view });
         view.ui.add(home, { position: "top-left", index: 0 });
@@ -163,30 +163,29 @@ define([
      *
      * @returns {*}
      */
-    initializeUserSignIn: function(view){
+    initializeUserSignIn: function(){
 
       const checkSignInStatus = () => {
-        return IdentityManager.checkSignInStatus(this.base.portal.url).then(userSignIn);
+        return IdentityManager.checkSignInStatus(this.base.portal.url).then(userSignIn).catch(userSignOut).then();
       };
       IdentityManager.on("credential-create", checkSignInStatus);
-      IdentityManager.on("credential-destroy", checkSignInStatus);
 
       // SIGN IN NODE //
-      const signInNode = dom.byId("sign-in-node");
-      const userNode = dom.byId("user-node");
+      const signInNode = document.getElementById("sign-in-node");
+      const userNode = document.getElementById("user-node");
 
       // UPDATE UI //
       const updateSignInUI = () => {
         if(this.base.portal.user){
-          dom.byId("user-firstname-node").innerHTML = this.base.portal.user.fullName.split(" ")[0];
-          dom.byId("user-fullname-node").innerHTML = this.base.portal.user.fullName;
-          dom.byId("username-node").innerHTML = this.base.portal.user.username;
-          dom.byId("user-thumb-node").src = this.base.portal.user.thumbnailUrl;
-          domClass.add(signInNode, "hide");
-          domClass.remove(userNode, "hide");
+          document.getElementById("user-firstname-node").innerHTML = this.base.portal.user.fullName.split(" ")[0];
+          document.getElementById("user-fullname-node").innerHTML = this.base.portal.user.fullName;
+          document.getElementById("username-node").innerHTML = this.base.portal.user.username;
+          document.getElementById("user-thumb-node").src = this.base.portal.user.thumbnailUrl;
+          signInNode.classList.add('hide');
+          userNode.classList.remove('hide');
         } else {
-          domClass.remove(signInNode, "hide");
-          domClass.add(userNode, "hide");
+          signInNode.classList.remove('hide');
+          userNode.classList.add('hide');
         }
         return promiseUtils.resolve();
       };
@@ -197,28 +196,28 @@ define([
         return this.base.portal.load().then(() => {
           this.emit("portal-user-change", {});
           return updateSignInUI();
-        }).otherwise(console.warn);
+        }).catch(console.warn).then();
       };
 
       // SIGN OUT //
       const userSignOut = () => {
         IdentityManager.destroyCredentials();
         this.base.portal = new Portal({});
-        this.base.portal.load().then(() => {
+        return this.base.portal.load().then(() => {
           this.base.portal.user = null;
           this.emit("portal-user-change", {});
           return updateSignInUI();
-        }).otherwise(console.warn);
+        }).catch(console.warn).then();
 
       };
 
       // USER SIGN IN //
-      on(signInNode, "click", userSignIn);
+      signInNode.addEventListener("click", userSignIn);
 
       // SIGN OUT NODE //
-      const signOutNode = dom.byId("sign-out-node");
+      const signOutNode = document.getElementById("sign-out-node");
       if(signOutNode){
-        on(signOutNode, "click", userSignOut);
+        signOutNode.addEventListener("click", userSignOut);
       }
 
       return checkSignInStatus();
